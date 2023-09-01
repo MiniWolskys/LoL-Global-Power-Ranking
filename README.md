@@ -8,6 +8,7 @@ LoL Global Power Ranking Repo for eponym [hackathon](https://lolglobalpowerranki
   - [Objectives](#objectives)
   - [Requirements](#requirements)
   - [Criteria](#criteria)
+  - [Pondering](#pondering)
   - [What already exists](#what-already-exists)
   - [What to take into account](#what-to-take-into-account)
   - [Possible solution](#possible-solution)
@@ -16,11 +17,17 @@ LoL Global Power Ranking Repo for eponym [hackathon](https://lolglobalpowerranki
       - [Database](#database)
       - [Server](#server)
       - [Web application](#web-application)
+  - [Mathematical considerations](#mathematical-considerations)
+    - [Elo rating](#elo-rating)
+    - [Game competitiveness](#game-competitiveness)
+    - [Player score](#player-score)
   - [References](#references)
   - [Authors](#authors)
 
 ## Informations
 All external website, application, or other non solution related objects will be mentionned in the [references](#references) part of this study.
+
+This document should constantly evolved to take into account any new informations that arise during the life of the solution.
 
 ## Objectives
 Creating any kind of application capable of giving an accurate ranking for a given list of team / competitions in the LoLEsports ecosystem.
@@ -40,6 +47,16 @@ Taken from the hackathon summary, the 4 criteria are :
 Outside of these factors, the solution MUST give a somewhat accurate power ranking to be considered.  
 These factors seems to be in order of importance, as in case of a tie the first ones will be looked at first.
 
+## Pondering
+Many questions arise from this premise, here is a list of relevant ones :
+- How do we treat best of series ?
+- How do we evaluate the value a player bring to a team ?
+- How do we take into account game competitiveness ?
+- How do we rank team accross regions and leagues ?
+- How do we take into account upsets happening in tournaments predictions ?
+- How do we treat the data from experimental games ?
+- Should all games be the same weight ?
+
 ## What already exists
 We can take notes that a few method already exists for ranking team in other sports, such as the FIFA World Ranking, the Opta's Power Ranking or the HoopsHype's Global Rating system. These are but a few exemples, and more information can be found about them in the [references](#references) section.  
 
@@ -54,6 +71,7 @@ Specific things to take into account includes :
 - Value of a match : Not all match are as relevant, while all are valuable, some might be used by better team in order to improve on weaknesses, and as such, increase the possibility of an upset.
 - Game result : The result of a game is obviously more indicative about the two team current level of play than any other factor.
 - Region rating : Each region has a different rating, as not each region is as strong as the other. Sea Chinese and Korean domination since 2013.
+- Game competitiveness : How close was the game, did the team winning nearly lost, was it a stomp...
 
 ## Possible solution
 
@@ -73,6 +91,23 @@ The server will be responsible for treating any new data, storing it in the data
 
 #### Web application
 The web application will profite the interface for the user to retrieve (and possibly add) data from the server / database. It will only communicate directly with the server, and must be quick so that user do not wait or experience lag.
+
+## Mathematical considerations
+
+### Elo rating
+Elo Rating system calculus for probability of team A win :  
+
+$E_{a} = \frac{1}{1 + 10 \frac{elo_{A} - elo_{B}}{400}}$
+
+Elo Rating system calculus for elo change :  
+
+$elo_{A}' = elo_{A} + K(S_{A} - E_{A})$
+
+Where $elo_{A}$ and $elo_{B}$ are the elo of Team  respectively A and B, $K$ is the variable used to calculate new elo, S_{A} is the final scoreline and $E_{A}$ is the expected outcome of the game.
+
+### Game competitiveness
+
+### Player score
 
 ## References
 - [Hackathon](https://lolglobalpowerrankings.devpost.com/)
