@@ -21,6 +21,7 @@ LoL Global Power Ranking Repo for eponym [hackathon](https://lolglobalpowerranki
     - [Elo rating](#elo-rating)
     - [Game competitiveness](#game-competitiveness)
     - [Player score](#player-score)
+    - [Start of season team elo](#start-of-season-team-elo)
   - [References](#references)
   - [Authors](#authors)
 
@@ -103,11 +104,24 @@ Elo Rating system calculus for elo change :
 
 $elo_{A}' = elo_{A} + K(S_{A} - E_{A})$
 
-Where $elo_{A}$ and $elo_{B}$ are the elo of Team  respectively A and B, $K$ is the variable used to calculate new elo, S_{A} is the final scoreline and $E_{A}$ is the expected outcome of the game.
+Where $elo_{A}$ and $elo_{B}$ are the elo of Team  respectively A and B, $K$ is the variable used to calculate new elo, $S_{A}$ is the final scoreline and $E_{A}$ is the expected outcome of the game.
 
 ### Game competitiveness
 
 ### Player score
+Player score ($p_{n}$) represents the value of player $n$ at the start of the split.
+Base player score is 1000, then calculated with all data from games played before split, weighted to give more value to most recent games.
+
+### Start of season team elo
+
+$elo_{p} = \frac{(p_{1} + p_{2} + p_{3} + p_{4} + p_{5})}{5}$  
+$elo_{team} = elo_{p} + \frac{elo_{old} - elo_{p}}{R}$
+
+Where $elo_{p}$ is the base elo of players put together, $p_{n}$ is the player score of player $n$, $elo_{team}$ is the final team elo, $elo_{old}$ is the previous team elo and $R$ is the regularity ratio of the team, ie. how regular is the team.
+
+R is calculated with the following method, only if $n > 1$ :
+
+$R = \frac{\sum(elo_{n}-elo_{average})}{n - 1}$
 
 ## References
 - [Hackathon](https://lolglobalpowerrankings.devpost.com/)
