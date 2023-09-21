@@ -31,7 +31,7 @@ def download_esports_files(file_name):
     return read_gzip_and_write_to_variable(f"{directory}/{file_name}")
 
 
-def get_games(tournaments_json, mapping_data_json):
+def get_games_ids(tournaments_json, mapping_data_json):
     #start_time = time.time()
     tournaments_data = json.loads(tournaments_json)
     mappings_data = json.loads(mapping_data_json)
@@ -59,9 +59,12 @@ def get_games(tournaments_json, mapping_data_json):
                                 game_counter += 1
     return esportgame_ids
 
-def get_game_info(platformGameId):
+def get_endgame_info(platformGameId):
     directory = "games"
-    game_info_json = read_gzip_and_write_to_variable(f"{directory}/{platformGameId}")
+    game_info_json = json.loads(read_gzip_and_write_to_variable(f"{directory}/{platformGameId}"))
+    game_info_df = pd.json_normalize(game_info_json)
+    end_game_info = pd.DataFrame(game_info_df[game_info_df["eventType"]=="stats_update"].iloc[-1]["participants"])
+    return end_game_info[["accountID", "stats"]]
 
 
 esports_data_files = ["leagues", "tournaments", "players", "teams", "mapping_data"]
@@ -72,5 +75,6 @@ players_json = download_esports_files(esports_data_files[2])
 teams_json = download_esports_files(esports_data_files[3])
 mapping_data_json = download_esports_files(esports_data_files[4])
 
-games_ids = get_games(tournaments_json, mapping_data_json)
-print(games_ids[:20])
+games_ids = get_games_ids(tournaments_json, mapping_data_json)
+endgame_info_df = get_endgame_info(games_ids[0][-1])
+print(endgame_info_df)
