@@ -17,6 +17,7 @@ LoL Global Power Ranking Repo for eponym [hackathon](https://lolglobalpowerranki
       - [Database](#database)
       - [Server](#server)
       - [Web application](#web-application)
+  - [Theorical calculations](#theorical-calculations)
   - [Mathematical considerations](#mathematical-considerations)
     - [Elo rating](#elo-rating)
     - [Game competitiveness](#game-competitiveness)
@@ -57,6 +58,7 @@ Many questions arise from this premise, here is a list of relevant ones :
 - How do we take into account upsets happening in tournaments predictions ?
 - How do we treat the data from experimental games ?
 - Should all games be the same weight ?
+- Should some games not remove elo points to the losing team, as shown by the FIFA world ranking system ?
 
 ## What already exists
 We can take notes that a few method already exists for ranking team in other sports, such as the FIFA World Ranking, the Opta's Power Ranking or the HoopsHype's Global Rating system. These are but a few exemples, and more information can be found about them in the [references](#references) section.  
@@ -92,6 +94,18 @@ The server will be responsible for treating any new data, storing it in the data
 
 #### Web application
 The web application will profite the interface for the user to retrieve (and possibly add) data from the server / database. It will only communicate directly with the server, and must be quick so that user do not wait or experience lag.
+
+## Theorical calculations
+
+Any calculation that is listed here will be detailed in the [mathematical considerations](#mathematical-considerations).
+
+First of, calculations must be made to estimate the score of each player. This should take into account first the stats from the previously played game from said player, then also the contribution from the player to the team wins or losses, ie. how much better does the team fare compared to expectations with said player playing.
+
+Then we calculate the split start elo of the team by averaging the score of each player, and we add the team last split elo multiplied by a team consistency factor. This allows us to take into account things like coaching staff and team management. Team consistency must be weighted to favor must recent performances, and should take into account results at the end of the split versus expected outcome at the start of the split.
+
+It is important to recognize that all not matches are as important. As such, while the very first few matches will be indicative of a team overall strenght at the start of the season, later on matches such as playoffs will be more valuable data than in season matches.
+
+All matches will have an impact on elo by calculating the importance of a match, by getting the current ranking and points of both team and the moment of the match. A match between first and last place in the middle of the season is not as important as the very last between 6 and 7th seed to determine who advances and who is out of the competition.
 
 ## Mathematical considerations
 
