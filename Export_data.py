@@ -31,54 +31,46 @@ def download_esports_files(file_name):
     return read_gzip_and_write_to_variable(f"{directory}/{file_name}")
 
 
-def download_games(year):
-   start_time = time.time()
-   with open("esports-data/tournaments.json", "r") as json_file:
-       tournaments_data = json.load(json_file)
-   with open("esports-data/mapping_data.json", "r") as json_file:
-       mappings_data = json.load(json_file)
+def get_games(tournaments_json, mapping_data_json):
+    #start_time = time.time()
+    tournaments_data = json.loads(tournaments_json)
+    mappings_data = json.loads(mapping_data_json)
 
-   directory = "games"
-   if not os.path.exists(directory):
-       os.makedirs(directory)
+    mappings = {esports_game["esportsGameId"]: esports_game for esports_game in mappings_data}
 
-   mappings = {
-       esports_game["esportsGameId"]: esports_game for esports_game in mappings_data
-   }
+    directory = "games"
 
-   game_counter = 0
+    game_counter = 0
+    esportgame_ids = []
+    
+    for tournament in tournaments_data:
+        for stage in tournament["stages"]:
+            for section in stage["sections"]:
+                for match in section["matches"]:
+                    for game in match["games"]:
+                        if game["state"] == "completed":
+                            try:
+                                game_info = mappings[game["id"]]
+                                esportgame_ids.append([tournament["id"], stage["name"], section["name"], match["id"], game["id"], mappings[game["id"]]["platformGameId"]])
+                            except KeyError:
+                                #print(f"{platform_game_id} {game['id']} not found in the mapping table")
+                                #games_not_found.append()
+                                continue
+                                game_counter += 1
+    return esportgame_ids
 
-   for tournament in tournaments_data:
-       start_date = tournament.get("startDate", "")
-       if start_date.startswith(str(year)):
-           print(f"Processing {tournament['slug']}")
-           for stage in tournament["stages"]:
-               for section in stage["sections"]:
-                   for match in section["matches"]:
-                       for game in match["games"]:
-                           if game["state"] == "completed":
-                               try:
-                                   platform_game_id = mappings[game["id"]]["platformGameId"]
-                               except KeyError:
-                                   print(f"{platform_game_id} {game['id']} not found in the mapping table")
-                                   continue
-
-                               read_gzip_and_write_to_variable(f"{directory}/{platform_game_id}")
-                               game_counter += 1
-
-                           if game_counter % 10 == 0:
-                               print(
-                                   f"----- Processed {game_counter} games, current run time: \
-                                   {round((time.time() - start_time)/60, 2)} minutes"
-                               )
+def get_game_info(platformGameId):
+    directory = "games"
+    game_info_json = read_gzip_and_write_to_variable(f"{directory}/{platformGameId}")
 
 
 esports_data_files = ["leagues", "tournaments", "players", "teams", "mapping_data"]
-leagues_df = pd.read_json(download_esports_files(esports_data_files[0]))
-tournaments_df = pd.read_json(download_esports_files(esports_data_files[1]))
-players_df = pd.read_json(download_esports_files(esports_data_files[2]))
-teams_df = pd.read_json(download_esports_files(esports_data_files[3]))
-mapping_data_df = pd.read_json(download_esports_files(esports_data_files[4]))
 
-print(leagues_df)
-#download_games(2023)
+leagues_json = download_esports_files(esports_data_files[0])
+tournaments_json = download_esports_files(esports_data_files[1])
+players_json = download_esports_files(esports_data_files[2])
+teams_json = download_esports_files(esports_data_files[3])
+mapping_data_json = download_esports_files(esports_data_files[4])
+
+games_ids = get_games(tournaments_json, mapping_data_json)
+print(games_ids[:20])
