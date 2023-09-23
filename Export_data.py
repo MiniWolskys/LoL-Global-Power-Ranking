@@ -64,7 +64,17 @@ def get_endgame_info(platformGameId):
     game_info_json = json.loads(read_gzip_and_write_to_variable(f"{directory}/{platformGameId}"))
     game_info_df = pd.json_normalize(game_info_json)
     end_game_info = pd.DataFrame(game_info_df[game_info_df["eventType"]=="stats_update"].iloc[-1]["participants"])
-    return end_game_info[["accountID", "stats"]]
+    end_game_info = end_game_info[["accountID", "stats"]]
+    dataframes = []
+    for line in end_game_info.itertuples():
+        data_df = pd.DataFrame()
+        data_df["platformDameId"] = platformGameId
+        data_df["accountID"] = line.accountID
+        for column in line.stats:
+            print(column)
+            data_df[column["name"]] = [column["value"]]
+        dataframes.append(data_df)
+    return pd.concat(dataframes)
 
 
 esports_data_files = ["leagues", "tournaments", "players", "teams", "mapping_data"]
