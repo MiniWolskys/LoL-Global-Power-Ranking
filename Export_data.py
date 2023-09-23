@@ -68,10 +68,11 @@ def get_endgame_info(platformGameId):
     dataframes = []
     for line in end_game_info.itertuples():
         data_df = pd.DataFrame()
-        data_df["platformDameId"] = platformGameId
-        data_df["accountID"] = line.accountID
+        print(platformGameId)
+        print(line.accountID)
+        data_df["platformGameId"] = [platformGameId]
+        data_df["accountID"] = [line.accountID]
         for column in line.stats:
-            print(column)
             data_df[column["name"]] = [column["value"]]
         dataframes.append(data_df)
     return pd.concat(dataframes)
