@@ -24,11 +24,9 @@ def read_gzip_and_write_to_variable(file_name):
         print(f"Failed to download {file_name}")
     return json_text
 
-
 def download_esports_files(file_name: str):
     directory = "esports-data"
     return read_gzip_and_write_to_variable(f"{directory}/{file_name}")
-
 
 def get_games_ids(tournaments_json: str, mapping_data_json: str):
     tournaments_data = json.loads(tournaments_json)
@@ -48,23 +46,92 @@ def get_games_ids(tournaments_json: str, mapping_data_json: str):
                                 continue
     return esportgame_ids
 
-def get_endgame_info(platformGameId: str):
-    directory = "games"
-    game_info_json = json.loads(read_gzip_and_write_to_variable(f"{directory}/{platformGameId}"))
-    game_info_df = pd.json_normalize(game_info_json)
-    end_game_info = pd.DataFrame(game_info_df[game_info_df["eventType"]=="stats_update"].iloc[-1]["participants"])
-    end_game_info = end_game_info[["accountID", "stats"]]
+def get_game_json(platformGameId: str): 
+    return json.loads(read_gzip_and_write_to_variable(f"games/{platformGameId}"))
+
+def get_game_length(game_json):
+    game_info_df = pd.json_normalize(game_json)
+    return game_info_df[game_info_df["eventType"]=="game_end"].iloc[-1]["gameTime"]/1000
+
+def get_endgame_stats(game_json):
+    game_info_df = pd.json_normalize(game_json)
+    return game_info_df[game_info_df["eventType"]=="stats_update"].iloc[-1]
+
+def get_endgame_player_stats(game_json):
+    end_game_info = get_endgame_stats(game_json)
+    platformGameId = end_game_info["platformGameId"]
+    end_game_info = pd.DataFrame(end_game_info["participants"])[["teamID", "totalGold", "accountID", "stats"]]
+    end_game_info["platformGameId"] = platformGameId
+    end_game_info["gameLength"] = get_game_length(game_json)
     dataframes = []
-    for line in end_game_info.itertuples():
+    for line in end_game_info[["stats"]].itertuples():
         data_df = pd.DataFrame()
-        data_df["platformGameId"] = [platformGameId]
-        data_df["accountID"] = [line.accountID]
         for column in line.stats:
             data_df[column["name"]] = [column["value"]]
         dataframes.append(data_df)
-    return pd.concat(dataframes).reset_index(drop=True)
+    return pd.concat([end_game_info.drop(columns=["stats"]), pd.concat(dataframes).reset_index(drop=True)], axis=1)
 
-esports_data_files = ["leagues", "tournaments", "players", "teams", "mapping_data"]
+# ----------------------------------------
+#Functions to calculate KPIs values. Might be interested to separate them in an another file
+def calc_kda(player_endgame_data):
+    return (player_endgame_data["CHAMPIONS_KILLED"] + player_endgame_data["ASSISTS"]) / player_endgame_data["NUM_DEATHS"].replace(0, 1)
+
+def calc_gold_min(player_endgame_data): 
+    return player_endgame_data["totalGold"] / (player_endgame_data["gameLength"]/60)
+
+def calc_cs_min(player_endgame_data):
+    return (player_endgame_data["MINIONS_KILLED"] +
+            player_endgame_data["NEUTRAL_MINIONS_KILLED"] +
+            player_endgame_data["NEUTRAL_MINIONS_KILLED_YOUR_JUNGLE"] +
+            player_endgame_data["NEUTRAL_MINIONS_KILLED_ENEMY_JUNGLE"]) / (player_endgame_data["gameLength"]/60)
+
+def calc_kill_part(player_endgame_data):
+    team_stat = player_endgame_data.groupby(["teamID"]).sum()
+    return (player_endgame_data["CHAMPIONS_KILLED"] + player_endgame_data["ASSISTS"])/ player_endgame_data.join(team_stat[["CHAMPIONS_KILLED"]], on="teamID", rsuffix="_team")["CHAMPIONS_KILLED_team"]
+
+def calc_gold_perc(player_endgame_data):
+    team_stat = player_endgame_data.groupby(["teamID"]).sum()
+    return player_endgame_data["totalGold"] / player_endgame_data.join(team_stat[["totalGold"]], on="teamID", rsuffix="_team")["totalGold_team"]
+
+def calc_dmg_perc(player_endgame_data):
+    team_stat = player_endgame_data.groupby(["teamID"]).sum()
+    return player_endgame_data["TOTAL_DAMAGE_DEALT_TO_CHAMPIONS"] / player_endgame_data.join(team_stat[["TOTAL_DAMAGE_DEALT_TO_CHAMPIONS"]], on="teamID", rsuffix="_team")["TOTAL_DAMAGE_DEALT_TO_CHAMPIONS_team"]
+
+def calc_dmg_per_gold(player_endgame_data):
+    return player_endgame_data["TOTAL_DAMAGE_DEALT_TO_CHAMPIONS"] / player_endgame_data["totalGold"]
+
+def calc_vision_score_per_min(player_endgame_data):
+    return player_endgame_data["VISION_SCORE"] / (player_endgame_data["gameLength"]/60)
+
+def calc_dmg_taken_perc(player_endgame_data):
+    team_stat = player_endgame_data.groupby(["teamID"]).sum()
+    return player_endgame_data["TOTAL_DAMAGE_TAKEN"] / player_endgame_data.join(team_stat[["TOTAL_DAMAGE_TAKEN"]], on="teamID", rsuffix="_team")["TOTAL_DAMAGE_TAKEN_team"]
+
+def calc_dmg_taken_per_death(player_endgame_data):
+    return player_endgame_data["TOTAL_DAMAGE_TAKEN"] / player_endgame_data["NUM_DEATHS"].replace(0, 1)
+
+# -----------------------------------------
+
+def get_game_kpis(player_endgame_data):
+    kpi_df = pd.DataFrame()
+    kpi_df["platformGameId"] = player_endgame_data["platformGameId"]
+    kpi_df["teamID"] = player_endgame_data["teamID"]
+    kpi_df["accountID"] = player_endgame_data["accountID"]
+
+    kpi_df["KDA"] = calc_kda(player_endgame_data)
+    kpi_df["Gold/min"] = calc_gold_min(player_endgame_data)
+    kpi_df["cs/min"] = calc_cs_min(player_endgame_data)
+    kpi_df["KP%"] = calc_kill_part(player_endgame_data)
+    kpi_df["Gold%"] = calc_gold_perc(player_endgame_data)
+    kpi_df["DMG%"] = calc_dmg_perc(player_endgame_data)
+    kpi_df["DMG/Gold"] = calc_dmg_per_gold(player_endgame_data)
+    kpi_df["Vision score/min"] = calc_vision_score_per_min(player_endgame_data)
+    kpi_df["%DMG taken"] = calc_dmg_taken_perc(player_endgame_data)
+    kpi_df["DMG taken/death"] = calc_dmg_taken_per_death(player_endgame_data)
+
+    return kpi_df
+
+"""esports_data_files = ["leagues", "tournaments", "players", "teams", "mapping_data"]
 
 leagues_json = download_esports_files(esports_data_files[0])
 tournaments_json = download_esports_files(esports_data_files[1])
@@ -72,6 +139,7 @@ players_json = download_esports_files(esports_data_files[2])
 teams_json = download_esports_files(esports_data_files[3])
 mapping_data_json = download_esports_files(esports_data_files[4])
 
-games_ids = get_games_ids(tournaments_json, mapping_data_json)
-endgame_info_df = get_endgame_info(games_ids[0][-1])
-print(endgame_info_df)
+games_ids = get_games_ids(tournaments_json, mapping_data_json)"""
+
+endgame_info_df = get_endgame_player_stats(get_game_json("ESPORTSTMNT01:3294091"))
+print(get_game_kpis(endgame_info_df))
