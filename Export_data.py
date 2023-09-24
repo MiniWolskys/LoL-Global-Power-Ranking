@@ -53,12 +53,12 @@ def get_game_length(game_json):
     game_info_df = pd.json_normalize(game_json)
     return game_info_df[game_info_df["eventType"]=="game_end"].iloc[-1]["gameTime"]/1000
 
-def get_endgame_stats(game_json):
+def get_game_events(game_json, eventType: str):
     game_info_df = pd.json_normalize(game_json)
-    return game_info_df[game_info_df["eventType"]=="stats_update"].iloc[-1]
+    return game_info_df[game_info_df["eventType"] == eventType]
 
 def get_endgame_player_stats(game_json):
-    end_game_info = get_endgame_stats(game_json)
+    end_game_info = get_game_events(game_json, "stats_update").iloc[-1]
     platformGameId = end_game_info["platformGameId"]
     end_game_info = pd.DataFrame(end_game_info["participants"])[["teamID", "totalGold", "accountID", "stats"]]
     end_game_info["platformGameId"] = platformGameId
@@ -70,6 +70,10 @@ def get_endgame_player_stats(game_json):
             data_df[column["name"]] = [column["value"]]
         dataframes.append(data_df)
     return pd.concat([end_game_info.drop(columns=["stats"]), pd.concat(dataframes).reset_index(drop=True)], axis=1)
+
+def get_account_ids(game_json):
+    game_info = get_game_events(game_json, "game_info").iloc[0]
+    return
 
 # ----------------------------------------
 #Functions to calculate KPIs values. Might be interested to separate them in an another file
@@ -110,9 +114,14 @@ def calc_dmg_taken_perc(player_endgame_data):
 def calc_dmg_taken_per_death(player_endgame_data):
     return player_endgame_data["TOTAL_DAMAGE_TAKEN"] / player_endgame_data["NUM_DEATHS"].replace(0, 1)
 
+def calc_plate_gold(game_json):
+    turret_plate_destroyed = get_game_events(game_json, "turret_plate_gold_earned")
+    turret_plate_destroyed = turret_plate_destroyed[turret_plate_destroyed["gameTime"]<14*60*1000]
+    return turret_plate_destroyed[["teamID", "participantID", "bounty"]].groupby(["teamID", "participantID"]).sum().sort_values(by="participantID", ascending=True)
 # -----------------------------------------
 
-def get_game_kpis(player_endgame_data):
+def get_game_kpis(game_json):
+    player_endgame_data = get_endgame_player_stats(game_json)
     kpi_df = pd.DataFrame()
     kpi_df["platformGameId"] = player_endgame_data["platformGameId"]
     kpi_df["teamID"] = player_endgame_data["teamID"]
@@ -129,6 +138,8 @@ def get_game_kpis(player_endgame_data):
     kpi_df["%DMG taken"] = calc_dmg_taken_perc(player_endgame_data)
     kpi_df["DMG taken/death"] = calc_dmg_taken_per_death(player_endgame_data)
 
+    kpi_df["Turret plate gold"] = calc_plate_gold(game_json)["bounty"].reset_index(drop=True)
+
     return kpi_df
 
 """esports_data_files = ["leagues", "tournaments", "players", "teams", "mapping_data"]
@@ -142,4 +153,4 @@ mapping_data_json = download_esports_files(esports_data_files[4])
 games_ids = get_games_ids(tournaments_json, mapping_data_json)"""
 
 endgame_info_df = get_endgame_player_stats(get_game_json("ESPORTSTMNT01:3294091"))
-print(get_game_kpis(endgame_info_df))
+print(get_game_kpis(get_game_json("ESPORTSTMNT01:3294091")))
