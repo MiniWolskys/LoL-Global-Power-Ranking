@@ -6,6 +6,7 @@ import time
 import os
 from io import BytesIO
 
+import numpy as np
 import pandas as pd
 
 S3_BUCKET_URL = "https://power-rankings-dataset-gprhack.s3.us-west-2.amazonaws.com"
@@ -118,6 +119,12 @@ def calc_plate_gold(game_json):
     turret_plate_destroyed = get_game_events(game_json, "turret_plate_gold_earned")
     turret_plate_destroyed = turret_plate_destroyed[turret_plate_destroyed["gameTime"]<14*60*1000]
     return turret_plate_destroyed[["teamID", "participantID", "bounty"]].groupby(["teamID", "participantID"]).sum().sort_values(by="participantID", ascending=True)
+
+def calc_turret_destroyed(game_json):
+    turret_destroyed = get_game_events(game_json, "building_destroyed")
+    turret_destroyed = turret_destroyed[turret_destroyed["buildingType"]=="turret"]
+    participants = list(np.concatenate(list(turret_destroyed["assistants"])).flat) + list(turret_destroyed["lastHitter"])
+    return [participants.count(element) for element in range(0,10)]
 # -----------------------------------------
 
 def get_game_kpis(game_json):
@@ -139,6 +146,7 @@ def get_game_kpis(game_json):
     kpi_df["DMG taken/death"] = calc_dmg_taken_per_death(player_endgame_data)
 
     kpi_df["Turret plate gold"] = calc_plate_gold(game_json)["bounty"].reset_index(drop=True)
+    kpi_df["Turret destroyed"] = calc_turret_destroyed(game_json)
 
     return kpi_df
 
